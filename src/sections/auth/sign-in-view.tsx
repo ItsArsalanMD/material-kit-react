@@ -12,6 +12,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { useRouter } from 'src/routes/hooks';
 
 import { Iconify } from 'src/components/iconify';
+import axios from 'axios';
+import { Alert } from '@mui/material';
 
 // ----------------------------------------------------------------------
 
@@ -19,56 +21,93 @@ export function SignInView() {
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const handleSignIn = useCallback(() => {
-    router.push('/');
-  }, [router]);
+  const handleSignIn = async (formData: FormData) => {
+    const username = formData.get('username') as string;
+    const password = formData.get('password') as string;
+  
+    console.log('username:', username);
+    console.log('password:', password);
+  
+    try {
+      const response = await axios.post('http://localhost:8000/api/login/', {
+        username,
+        password,
+      });
+    
+      const { access } = response.data;
+    
+      if (access) {
+        // Store token in localStorage
+        localStorage.setItem('accessToken', access);
+    
+        // Fetch user information
+        const userInfoResponse = await axios.get('http://localhost:8000/api/user-info/', {
+          headers: {
+            Authorization: `Bearer ${access}`,
+          },
+        });
+        
+        
+        const userInfo = userInfoResponse.data;
+        console.log('User Info:', userInfo);
+        
+        // Navigate based on user type
+        if (userInfo.is_superuser) {
+          router.push('/admin/dashboard');
+        } else if (userInfo.utype === "2") {
+          router.push('/'); // Default route
+        }
+      }
+    } catch (error: any) {
+      console.error('Login failed:', error.response?.data.detail || error.message);
+      setFormError(error.response?.data.detail);
+    }
+  };
 
   const renderForm = (
-    <Box display="flex" flexDirection="column" alignItems="flex-end">
-      <TextField
-        fullWidth
-        name="email"
-        label="Email address"
-        defaultValue="hello@gmail.com"
-        InputLabelProps={{ shrink: true }}
-        sx={{ mb: 3 }}
-      />
-
-      <Link variant="body2" color="inherit" sx={{ mb: 1.5 }}>
-        Forgot password?
-      </Link>
-
-      <TextField
-        fullWidth
-        name="password"
-        label="Password"
-        defaultValue="@demo1234"
-        InputLabelProps={{ shrink: true }}
-        type={showPassword ? 'text' : 'password'}
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                <Iconify icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-        sx={{ mb: 3 }}
-      />
-
-      <LoadingButton
-        fullWidth
-        size="large"
-        type="submit"
-        color="inherit"
-        variant="contained"
-        onClick={handleSignIn}
-      >
-        Sign in
-      </LoadingButton>
-    </Box>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSignIn(new FormData(e.currentTarget));
+      }}
+    >
+      <Box display="flex" flexDirection="column" alignItems="flex-end">
+        <TextField
+          fullWidth
+          autoComplete="username"
+          name="username"
+          label="Email address"
+          sx={{ mb: 3 }}
+        />
+  
+        <TextField
+          fullWidth
+          name="password"
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                  <Iconify icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          sx={{ mb: 3 }}
+        />
+  
+        <Link variant="body2" color="inherit" sx={{ mb: 1.5 }}>
+          Forgot password?
+        </Link>
+  
+        <LoadingButton fullWidth size="large" type="submit" color="inherit" variant="contained">
+          Sign in
+        </LoadingButton>
+      </Box>
+    </form>
   );
 
   return (
@@ -83,6 +122,8 @@ export function SignInView() {
         </Typography>
       </Box>
 
+      {formError && <Alert severity="error" sx={{ mb: 3 }} onClose={() => setFormError(null)} hidden={!formError}>{formError}</Alert>}
+      
       {renderForm}
 
       <Divider sx={{ my: 3, '&::before, &::after': { borderTopStyle: 'dashed' } }}>

@@ -87,7 +87,7 @@ export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) 
                   data={[
                     {
                       label: 'Home',
-                      href: '/',
+                      href: 'admin/dashboard',
                       icon: <Iconify width={22} icon="solar:home-angle-bold-duotone" />,
                     },
                     {
